@@ -1,0 +1,15 @@
+# Gradle
+
+/.gradle/
+/build/
+
+# IDEA
+
+/.idea/
+/out/
+*.iml
+
+# Run
+
+input.jar
+output.jar
