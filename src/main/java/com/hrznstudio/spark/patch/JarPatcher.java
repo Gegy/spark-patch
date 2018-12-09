@@ -30,13 +30,15 @@ public class JarPatcher implements IPatchContext, AutoCloseable {
 
     public static void main(String[] args) throws IOException {
         AtomicLong totalBytes = new AtomicLong();
-
-        JarPatcher patcher = new JarPatcher(Paths.get("input.jar"), new Path[0], (target, bytes) -> {
+        IBytePatcher patcher = (target, bytes) -> {
             totalBytes.addAndGet(bytes.length);
             return bytes;
-        });
+        };
 
-        patcher.patch(Paths.get("output.jar"));
+        try (JarPatcher jarPatcher = new JarPatcher(Paths.get("input.jar"), new Path[0], patcher)) {
+            jarPatcher.patch(Paths.get("output.jar"));
+        }
+
         System.out.println("Processed " + totalBytes.get() + " bytes");
     }
 
@@ -108,6 +110,11 @@ public class JarPatcher implements IPatchContext, AutoCloseable {
             }
         }
         return null;
+    }
+
+    @Override
+    public IBytePatcher getPatcher() {
+        return this.patcher;
     }
 
     private byte[] readBytes(FileSystem jar, String name) throws IOException {

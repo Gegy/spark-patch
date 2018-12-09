@@ -6,4 +6,6 @@ public interface IPatchContext {
     byte[] readRawBytes(String name) throws IOException;
 
     byte[] readClasspathBytes(String name) throws IOException;
+
+    IBytePatcher getPatcher();
 }
