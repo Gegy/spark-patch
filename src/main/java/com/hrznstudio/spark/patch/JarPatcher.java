@@ -7,6 +7,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,26 +17,26 @@ public class JarPatcher implements IPatchContext, AutoCloseable {
     private final FileSystem input;
     private final FileSystem[] classpath;
 
-    private final IBytePatcher patcher;
+    private final StackedPatcher patcher;
 
-    public JarPatcher(Path input, Path[] classpath, IBytePatcher patcher) throws IOException {
+    public JarPatcher(Path input, Path[] classpath, Collection<IBytePatcher> patchers) throws IOException {
         this.input = FileSystems.newFileSystem(input, null);
         this.classpath = new FileSystem[classpath.length];
         for (int i = 0; i < classpath.length; i++) {
             this.classpath[i] = FileSystems.newFileSystem(classpath[i], null);
         }
 
-        this.patcher = patcher;
+        this.patcher = new StackedPatcher(patchers);
     }
 
     public static void main(String[] args) throws IOException {
         AtomicLong totalBytes = new AtomicLong();
-        IBytePatcher patcher = (target, bytes) -> {
+        Collection<IBytePatcher> patchers = Collections.singleton((target, bytes) -> {
             totalBytes.addAndGet(bytes.length);
             return bytes;
-        };
+        });
 
-        try (JarPatcher jarPatcher = new JarPatcher(Paths.get("input.jar"), new Path[0], patcher)) {
+        try (JarPatcher jarPatcher = new JarPatcher(Paths.get("input.jar"), new Path[0], patchers)) {
             jarPatcher.patch(Paths.get("output.jar"));
         }
 
@@ -83,6 +84,7 @@ public class JarPatcher implements IPatchContext, AutoCloseable {
     private byte[] patchFile(Path path) throws IOException {
         byte[] bytes = Files.readAllBytes(path);
         String target = this.getTarget(path);
+
         return this.patcher.apply(target, bytes);
     }
 
@@ -113,8 +115,8 @@ public class JarPatcher implements IPatchContext, AutoCloseable {
     }
 
     @Override
-    public IBytePatcher getPatcher() {
-        return this.patcher;
+    public Collection<IBytePatcher> getPatchers() {
+        return this.patcher.getStacked();
     }
 
     private byte[] readBytes(FileSystem jar, String name) throws IOException {
